@@ -1,0 +1,5 @@
+*.zip
+test_train_splits/
+video_data/
+weights/
+venv/
