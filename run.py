@@ -1,40 +1,22 @@
 import os
 import time
-import torchvision
 import torch.nn.functional as F
-import torchvision.transforms as transforms
 import torch.optim as optim
-from torch.utils.data import random_split, DataLoader
 import torch
-import transforms as T
-from movinets import MoViNet
-from movinets.config import _C
 
 import config
-import movinets.models
 
-#sometimes = lambda aug: va.Sometimes(0.1, aug) # Used to apply augmentor with 10% probability
-#seq = va.OneOF([
-#    #va.RandomCrop(size=(240, 180)), # randomly crop video with a size of (240 x 180)
-#    #va.RandomRotate(degrees=10), # randomly rotates the video with a degree randomly choosen from [-10, 10]
-#    sometimes(va.GaussianBlur()),
-#    sometimes(va.ElasticTransformation()),
-#    sometimes(va.PiecewiseAffineTransform()),
-#    sometimes(va.Superpixel()),
-#    sometimes(va.Pepper()),
-#    sometimes(va.Salt()),
-#    sometimes(va.InvertColor())
-#])
 
-def save_model_weights(model,overall_accuracy, best_acc):
-    best_weight = os.path.join(config.checkpoint_path, 'best.pt')
+def save_model_weights(model,overall_accuracy, best_acc, path):
+    best_weight = os.path.join(path, 'best.pt')
     if overall_accuracy >= best_acc:
         best_acc = overall_accuracy
-        print('Save Weight!',best_weight)
+        print(f'New best accuracy. Save best weight to {best_weight}')
         torch.save(model.state_dict(), best_weight, _use_new_zipfile_serialization=False)
     return best_acc
 
-def train_iter(model, optimz, data_load, loss_val):
+
+def train_iter(model, optimz, data_load, loss_history):
     samples = len(data_load.dataset)
     model.train()
     model.cuda()
@@ -51,13 +33,14 @@ def train_iter(model, optimz, data_load, loss_val):
             print('[' +  '{:5}'.format(i * len(data)) + '/' + '{:5}'.format(samples) +
                   ' (' + '{:3.0f}'.format(100 * i / len(data_load)) + '%)]  Loss: ' +
                   '{:6.4f}'.format(loss.item()))
-            loss_val.append(loss.item())
+            loss_history.append(loss.item())
 
-def evaluate(model, data_load, loss_val, best_acc):
+
+def evaluate(model, data_load, loss_history):
     model.eval()
 
     samples = len(data_load.dataset)
-    csamp = 0
+    accuracy = 0
     tloss = 0
     model.clean_activation_buffers()
     with torch.no_grad():
@@ -67,128 +50,62 @@ def evaluate(model, data_load, loss_val, best_acc):
             _, pred = torch.max(output, dim=1)
 
             tloss += loss.item()
-            csamp += pred.eq(target.cuda()).sum()
+            accuracy += pred.eq(target.cuda()).sum()
             model.clean_activation_buffers()
     aloss = tloss / samples
-    loss_val.append(aloss)
-    print('\nAverage test loss: ' + '{:.4f}'.format(aloss) +
-          '  Accuracy:' + '{:5}'.format(csamp) + '/' +
+    loss_history.append(aloss)
+    print('\nAverage loss: ' + '{:.4f}'.format(aloss) +
+          '  Accuracy:' + '{:5}'.format(accuracy) + '/' +
           '{:5}'.format(samples) + ' (' +
-          '{:4.2f}'.format(100.0 * csamp / samples) + '%)\n')
-    best_acc = save_model_weights(model, csamp, best_acc)
+          '{:4.2f}'.format(100.0 * accuracy / samples) + '%)\n')
+    
 
-    return best_acc
+    return accuracy
 
 
-def train_iter_stream(model, optimz, data_load, loss_val, n_clips = 2, n_clip_frames=8):
-    """
-    In causal mode with stream buffer a single video is fed to the network
-    using subclips of lenght n_clip_frames.
-    n_clips*n_clip_frames should be equal to the total number of frames presents
-    in the video.
+def exponential_decay(optimizer, epoch, decay_rate=0.96, lr_decay_epoch=2):
+    """Decay learning rate by a factor of decay_rate every lr_decay_epoch epochs."""
+    if epoch == 0:
+        return optimizer
+    
+    if epoch % lr_decay_epoch:
+        return optimizer
 
-    n_clips : number of clips that are used
-    n_clip_frames : number of frame contained in each clip
-    """
-    #clean the buffer of activations
-    samples = len(data_load.dataset)
-    model.cuda()
-    model.train()
-    model.clean_activation_buffers()
-    optimz.zero_grad()
-    csamp = 0
-    print("best",best_acc)
-    for i, (data, target) in enumerate(data_load):
-        data = data.cuda()
-        #data = seq(data)
-        #print("==",data.size())
-        target = target.cuda()
-        #print(target.size())
-        l_batch = 0
-        #backward pass for each clip
-        for j in range(n_clips):
-          #print(data.size())
-          #print(data[:,:,(n_clip_frames)*(j):(n_clip_frames)*(j+1)].size())
-          output = F.log_softmax(model(data[:,:,(n_clip_frames)*(j):(n_clip_frames)*(j+1)]), dim=1)
-          #print(data[:,:,(n_clip_frames)*(j):(n_clip_frames)*(j+1)])
-          loss = F.nll_loss(output, target)
-          _, pred = torch.max(output, dim=1)
-          #print("target",target)
-          #print("output",pred)
-          loss = F.nll_loss(output, target)/n_clips
-          loss.backward()
-        _, pred = torch.max(output, dim=1)
-        csamp += pred.eq(target).sum()
-        
-        l_batch += loss.item()*n_clips
-        optimz.step()
-        optimz.zero_grad()
+    for param_group in optimizer.param_groups:
+        print("Exponential Decay updating learning rate")
+        param_group['lr'] *= decay_rate
 
-        #clean the buffer of activations
-        model.clean_activation_buffers()
-        #break
-        if i % 50 == 0:
-            print('[' +  '{:5}'.format(i * len(data)) + '/' + '{:5}'.format(samples) +
-                  ' (' + '{:3.0f}'.format(100 * i / len(data_load)) + '%)]  Loss: ' +
-                  '{:6.4f}'.format(l_batch))
-            loss_val.append(l_batch)
-    #save_model_weights(csamp, best_acc)
+    return optimizer
 
-def evaluate_stream(model, data_load, loss_val, best_acc, n_clips = 2, n_clip_frames=8):
-    model.eval()
-    model.cuda()
-    samples = len(data_load.dataset)
-    csamp = 0
-    tloss = 0
-    with torch.no_grad():
-        for data, target in data_load:
-            data = data.cuda()
-            target = target.cuda()
-            model.clean_activation_buffers()
-            for j in range(n_clips):
-              output = F.log_softmax(model(data[:,:,(n_clip_frames)*(j):(n_clip_frames)*(j+1)]), dim=1)
-              loss = F.nll_loss(output, target)
-            _, pred = torch.max(output, dim=1)
-            tloss += loss.item()
-            csamp += pred.eq(target).sum()
 
-    aloss = tloss /  len(data_load)
-    loss_val.append(aloss)
-    print('\nAverage test loss: ' + '{:.4f}'.format(aloss) +
-          '  Accuracy:' + '{:5}'.format(csamp) + '/' +
-          '{:5}'.format(samples) + ' (' +
-          '{:4.2f}'.format(100.0 * csamp / samples) + '%)\n')
-    best_acc = save_model_weights(model, csamp, best_acc)
-        
-    return best_acc
-
-if __name__ == "__main__":
-    N_EPOCHS = 5
-    model = MoViNet(_C.MODEL.MoViNetA3, causal = False, pretrained = True )
-
-    # freeze all layers
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # unfreeze the conv1, blocks
-    for param in model.classifier.parameters():
-        param.requires_grad = True
-
+def train_test_run(model, train_load, val_load, test_load, config,  N_EPOCHS=5, lr=0.00005):
     start_time = time.time()
+    losses_train, losses_val, losses_test = [], [], []
 
-    trloss_val, tsloss_val = [], []
-    model.classifier[3] = torch.nn.Conv3d(2048, 2, (1,1,1))
-    optimz = optim.Adam(model.parameters(), lr=0.00005)
-    best_acc=0
-    best_acc = evaluate_stream(model, config.valid_loader, tsloss_val, best_acc=best_acc)
+    optimz = optim.Adam(model.parameters(), lr=lr)
 
-    for epoch in range(1, N_EPOCHS + 1):
+    best_acc_val = 0
+
+    for epoch in range(0, N_EPOCHS):
         print('Epoch:', epoch)
-        train_iter(model, optimz, config.train_loader, trloss_val)
-        best_acc = evaluate(model, config.valid_loader, tsloss_val, best_acc=best_acc)
-        if epoch > 0 and (epoch  % 2 == 0):
-                for param_group in optimz.param_groups:
-                    param_group['lr'] = param_group['lr'] * 0.5
-                    print("lr", param_group['lr'])
+        optimz = exponential_decay(optimz, epoch)
+        
+        print('Started Training -------------------------------')
+        train_iter(model, optimz, train_load, losses_train)
 
+        print('Started Validation -----------------------------')
+        accuracy_val = evaluate(model, val_load, losses_val)
+        best_acc_val = save_model_weights(model, accuracy_val, best_acc_val, config.checkpoint_path)
+
+        print('Started Testing --------------------------------')
+        accuracy_test = evaluate(model, test_load, losses_test)
+         
     print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
+    return {
+        'train_loss': losses_train,
+        'val_loss': losses_val,
+        'test_loss': losses_test,
+        'best_acc_val': best_acc_val,
+        'accuracy_test': accuracy_test,
+        'accuracy_val': accuracy_val,
+    }

@@ -36,6 +36,8 @@ test_path = './data/HockeyFights/test/'
 print(train_path)
 train_dataset = dataloader.Hockey(root=train_path, annotation_path='test_train_splits/', frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform, num_workers=16)
 valid_dataset = dataloader.Hockey(root=valid_path, annotation_path='test_train_splits/', frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=16)
+test_dataset = dataloader.Hockey(root=test_path, annotation_path='test_train_splits/', frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=16)
 
 train_loader = DataLoader(train_dataset, batch_size=Bs_Train, shuffle=True)
 valid_loader  = DataLoader(valid_dataset, batch_size=Bs_Test, shuffle=False)
+test_loader  = DataLoader(test_dataset, batch_size=Bs_Test, shuffle=False)
