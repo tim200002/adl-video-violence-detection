@@ -1,14 +1,9 @@
-import time
-import torchvision
-import torch.nn.functional as F
+
 import torchvision.transforms as transforms
-import torch.optim as optim
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import DataLoader
 import torch
-import transforms as T
-from movinets import MoViNet
-from movinets.config import _C
-import dataloader
+import utils.transforms as T
+import utils.dataloader as dataloader
 
 torch.manual_seed(97)
 num_frames = 16 # 16

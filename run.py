@@ -4,8 +4,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch
 
-import config
-
 
 def save_model_weights(model,overall_accuracy, best_acc, path):
     best_weight = os.path.join(path, 'best.pt')

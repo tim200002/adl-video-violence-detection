@@ -4,6 +4,7 @@ video_data/
 weights/
 venv/
 data/
+junk/
 
 __pycache__/
 *.pyc

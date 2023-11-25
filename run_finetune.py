@@ -3,7 +3,7 @@ from movinets import MoViNet
 from movinets.config import _C
 from run import train_test_run
 
-import config
+import configs.config as config
 
 if __name__ == "__main__":
     N_EPOCHS = 5
