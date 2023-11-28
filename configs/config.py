@@ -11,6 +11,8 @@ clip_steps = 1
 Bs_Train = 16
 Bs_Test = 16
 checkpoint_path ='./checkpoint/'
+checkpoint_name = 'finetune_model.pt'
+
 transform = transforms.Compose([
 
                                  T.ToFloatTensorInZeroOne(),

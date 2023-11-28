@@ -642,10 +642,14 @@ class MoViNet(nn.Module):
         x = self.blocks(x)
         x = self.conv7(x)
         x = self.avg(x)
+
+        # make copy to return for mmd_loss
+        features = x.clone()
+
         x = self.classifier(x)
         x = x.flatten(1)
 
-        return x
+        return x, features
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
