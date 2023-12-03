@@ -28,9 +28,7 @@ class MMDLoss(nn.Module):
         self.kernel = kernel
 
     def forward(self, X, Y)->torch.Tensor:
-        # reshape batches to flatten
-        X = X.reshape(X.shape[0], -1)
-        Y = Y.reshape(Y.shape[0], -1)
+       
 
         K = self.kernel(torch.vstack([X, Y]))
 

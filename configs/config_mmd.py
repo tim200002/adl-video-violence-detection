@@ -9,10 +9,12 @@ from utils.sampler import InfinityDomainSampler
 torch.manual_seed(97)
 num_frames = 16 # 16
 clip_steps = 1
-Bs_Train = 8
+Bs_Train = 10
 Bs_Test = 16
 checkpoint_path ='./checkpoint/'
 checkpoint_name = 'mmd_model.pt'
+
+checkpoint_restore_path = "checkpoint/best_hockey_A3_woaug.pt"
 
 transform = transforms.Compose([
 
@@ -45,15 +47,18 @@ test_loader_hockey  = DataLoader(test_dataset_hockey, batch_size=Bs_Test, shuffl
 
 train_dataset_ucf = dataloader.UCF(root=train_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform, num_workers=8)
 valid_dataset_ucf = dataloader.UCF(root=valid_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps, train=0,transform=transform_test, num_workers=8)
+# reduce size to 100 random samples
+valid_dataset_ucf_small = torch.utils.data.Subset(valid_dataset_ucf, torch.randperm(len(valid_dataset_ucf))[:100])
+
 test_dataset_ucf = dataloader.UCF(root=test_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=8)
 
 train_loader_ucf = DataLoader(train_dataset_ucf, batch_size=Bs_Train, shuffle=True)
 valid_loader_ucf  = DataLoader(valid_dataset_ucf, batch_size=Bs_Test, shuffle=False)
+valid_loader_ucf_small  = DataLoader(valid_dataset_ucf_small, batch_size=Bs_Test, shuffle=False)
 test_loader_ucf  = DataLoader(test_dataset_ucf, batch_size=Bs_Test, shuffle=False)
 
-# used to later sample target domain data
-train_sampler_hockey = InfinityDomainSampler(train_loader_hockey)
 
-# used for weighting classification loss vs mmd loss
-# overall loss is calculated as: (1-mmd_weighting_factor)*classification_loss + mmd_weighting_factor*mmd_loss   
-mmd_weighting_factor = 1.0
+
+mean_pooling=True
+max_iterations = 1000
+evaluate_every_iteration = 100

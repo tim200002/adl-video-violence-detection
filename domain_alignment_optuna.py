@@ -1,0 +1,112 @@
+import math
+import os
+import torch.optim as optim
+import torch
+import torch.nn.functional as F
+from tqdm import tqdm
+from junk.run_copy import save_model_weights
+
+from movinets import MoViNet
+from movinets.config import _C
+from utils.evaluate import evaluate
+from utils.get_model import get_model
+from utils.sampler import InfinityDomainSampler
+
+
+from utils.wasserstein_loss import WassersteinLoss
+import optuna
+
+
+def objective(trial, config):
+    # Generate the model
+    model = get_model(config.checkpoint_restore_path)
+
+    # Generate the optimizer
+    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    optimz = optim.Adam(model.parameters(), lr)
+    # exponential_decay_rate = trial.suggest_loguniform("exponential_decay_rate", 0.0001, 0.1)
+
+    # Generate domain alignment loss
+    domain_alignment_loss = WassersteinLoss()
+
+    # Furhter hyperparameters
+    mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.0, 1.0)
+    
+    src_sampler = InfinityDomainSampler(config.train_loader_hockey)
+    target_sampler = InfinityDomainSampler(config.train_loader_ucf)
+    target_test_loader = config.valid_loader_ucf_small
+
+
+    no_of_epoch = math.ceil(config.max_iterations / config.evaluate_every_iteration)
+    itertation_counter = 0
+
+    best_acc = 0.0
+    for epoch in range(1, no_of_epoch + 1):
+        print(f"Epoch: {epoch}/{no_of_epoch}")
+        iterations_this_epoch = min(config.evaluate_every_iteration, config.max_iterations - itertation_counter)
+        for _ in tqdm(range(0, iterations_this_epoch)):
+            itertation_counter += 1
+
+            (src_videos, label) = src_sampler.get_sample()
+            (target_videos, _) = target_sampler.get_sample()
+
+            model.train()
+            optimz.zero_grad()
+            model.clean_activation_buffers()
+
+            # forward pass
+            preds, src_features = model(src_videos.cuda())
+            _, target_features = model(target_videos.cuda())
+
+            # Optimize for source domain accuracy
+            out = F.log_softmax(preds, dim=1)
+            loss_acc = F.nll_loss(out, label.cuda())
+
+            # Optimize for domain alignment
+            
+            # Mean pool accross time
+            if config.mean_pooling:
+                src_features_domain_alignment = torch.mean(src_features, dim=2)
+                target_features_domain_alignment = torch.mean(target_features, dim=2)
+            else:
+                src_features_domain_alignment = src_features
+                target_features_domain_alignment = target_features
+
+            # flatten
+            src_feature_flattened = src_features_domain_alignment.view(src_features_domain_alignment.shape[0], -1)
+            target_feature_flattened = target_features_domain_alignment.view(target_features_domain_alignment.shape[0], -1)
+
+            loss_alignment = domain_alignment_loss(src_feature_flattened, target_feature_flattened)
+
+            # Overall loss is calculated as: (1-mmd_weighting_factor)*classification_loss + mmd_weighting_factor*mmd_loss
+            loss = (1-mmd_weighting_factor)*loss_acc + mmd_weighting_factor*loss_alignment
+            loss.backward()
+            optimz.step()
+
+        # evaluate
+        target_accuracy = evaluate(model, target_test_loader)
+        print(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()}")
+        trial.report(target_accuracy, epoch)
+
+        model_save_path = os.path.join(config.save_path, f"model_{trial.number}.pth")
+        best_acc = save_model_weights(model, target_accuracy, best_acc, model_save_path)
+
+        # handle pruning
+        if trial.should_prune():
+            raise optuna.exceptions.TrialPruned()
+        
+    return target_accuracy
+
+if __name__ == "__main__":
+    from functools import partial
+
+    import configs.config_mmd as config
+    
+    # intial evaluation
+    model = get_model(config.checkpoint_restore_path)
+    target_accuracy = evaluate(model, config.valid_loader_ucf_small)
+    print(f"Initial accuracy: {target_accuracy.item()}")
+    
+    objective = partial(objective, config=config)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=20)

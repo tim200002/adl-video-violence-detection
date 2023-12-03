@@ -51,3 +51,4 @@ htmlcov/
 .vscode/
 
 experiments/
+*.pt
