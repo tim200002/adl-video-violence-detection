@@ -89,8 +89,8 @@ def objective(trial, config):
             optimz.step()
 
         # evaluate
-        target_accuracy = evaluate(model, target_test_loader)
-        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()}")
+        target_accuracy, confusion_matrix = evaluate(model, target_test_loader)
+        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()} Confusion matrix: {confusion_matrix}")
         trial.report(target_accuracy, epoch)
 
         model_save_path = os.path.join(config.checkpoint_path, f"model_{trial.number}.pth")
@@ -119,8 +119,9 @@ if __name__ == "__main__":
         init_experiment(config)
         # intial evaluation
         model = get_model(config.checkpoint_restore_path)
-        target_accuracy = evaluate(model, config.valid_loader_ucf_small)
+        target_accuracy, confusion_matrix = evaluate(model, config.valid_loader_ucf_small)
         logging.info(f"Initial accuracy: {target_accuracy.item()}")
+        logging.info(f"Confusion matrix: {confusion_matrix}")
         
     
     # run study

@@ -80,8 +80,8 @@ def train(config):
             optimz.step()
         
         # evaluate
-        target_accuracy = evaluate(model, target_test_loader)
-        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()}")
+        target_accuracy, confusion_matrix = evaluate(model, target_test_loader)
+        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()} Confusion matrix: {confusion_matrix}")
         model_save_path = os.path.join(config.checkpoint_path, f"domain_alignment.pth")
         best_acc = save_best_model_weights(model, target_accuracy, best_acc, model_save_path)
     
@@ -92,8 +92,9 @@ if __name__ == "__main__":
     init_experiment(config)
 
     # initial evaluation
-    target_accuracy = evaluate(get_model(config.checkpoint_restore_path), config.valid_loader_ucf_small)
+    target_accuracy, evaluation_matrix = evaluate(get_model(config.checkpoint_restore_path), config.valid_loader_ucf_small)
     logging.info(f"Initial accuracy: {target_accuracy}")
+    logging.info(f"Initial evaluation matrix: {evaluation_matrix}")
 
     best_acc = train(config)
     logging.info(f"Experiment finished. Best accuracy: {best_acc}")

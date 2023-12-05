@@ -57,8 +57,8 @@ def objective(trial, config):
 
             # print statistics
             if i % 50 == 0:
-                accuracy = evaluate(model, valid_loader_small)
-                logging.info(f"[Epoch {epoch}/{N_EPOCHS}] [Iteration {i}/{len(train_loader)}]  Accuracy: {accuracy} Latest Loss: Loss: {loss.item()}")
+                accuracy, confusion_matrix = evaluate(model, valid_loader_small)
+                logging.info(f"[Epoch {epoch}/{N_EPOCHS}] [Iteration {i}/{len(train_loader)}]  Accuracy: {accuracy} Latest Loss: Loss: {loss.item()} Confusion Matrix: {confusion_matrix}")
                 trial.report(accuracy, evaluation_counter)
                 evaluation_counter += 1
 
@@ -71,7 +71,8 @@ def objective(trial, config):
                     raise optuna.exceptions.TrialPruned()
         
         # final evaluation
-        accuracy = evaluate(model, valid_loader)
+        accuracy, confusion_matrix = evaluate(model, valid_loader)
+        logging.info(f"Final accuracy: {accuracy} Confusion Matrix: {confusion_matrix}")
 
         
 

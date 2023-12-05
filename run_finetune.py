@@ -52,15 +52,15 @@ def train(config):
 
             # print statistics
             if i % 50 == 0:
-                accuracy = evaluate(model, valid_loader_small)
-                logging.info(f"[Epoch {epoch}/{N_EPOCHS}] [Iteration {i}/{len(train_loader)}]  Accuracy: {accuracy} Latest Loss: Loss: {loss.item()}")
+                accuracy, confusion_matrix = evaluate(model, valid_loader_small)
+                logging.info(f"[Epoch {epoch}/{N_EPOCHS}] [Iteration {i}/{len(train_loader)}]  Accuracy: {accuracy} Latest Loss: Loss: {loss.item()} ")
 
                 model_save_path = os.path.join(config.checkpoint_path, f"best_model.pth")
                 best_acc = save_best_model_weights(model, accuracy, best_acc, model_save_path)
                 
     # final evaluation
-    accuracy = evaluate(model, valid_loader)
-    logging.info(f"Final accuracy: {accuracy}")
+    accuracy, confusion_matrix = evaluate(model, valid_loader)
+    logging.info(f"Final accuracy: {accuracy} Confusion matrix: {confusion_matrix}")
    
 
     return accuracy
@@ -68,6 +68,11 @@ def train(config):
 if __name__ == '__main__':
     import configs.config as config
     init_experiment(config)
+
+    model = get_model()
+    initial_accuracy, confusion_matrix = evaluate(model, config.valid_loader)
+    logging.info(f"Initial accuracy: {initial_accuracy}")
+    logging.info(f"Confusion matrix: {confusion_matrix}")
 
     train(config)
         
