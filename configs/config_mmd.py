@@ -7,14 +7,23 @@ import utils.dataloader as dataloader
 from utils.sampler import InfinityDomainSampler
 
 torch.manual_seed(97)
+experiment_name = "domain_alignment"
 num_frames = 16 # 16
 clip_steps = 1
 Bs_Train = 10
 Bs_Test = 16
-checkpoint_path ='./checkpoint/'
-checkpoint_name = 'mmd_model.pt'
 
-checkpoint_restore_path = "checkpoint/best_hockey_A3_woaug.pt"
+checkpoint_restore_path = "checkpoint/hockey_finetuned.pth"
+
+# parameters, automatically set by optuna, set manually for manual runs
+lr = 0.00005
+mmd_weighting_factor = 0.7
+
+# special mmd parameters
+mean_pooling=True
+max_iterations = 1000
+evaluate_every_iteration = 100
+
 
 transform = transforms.Compose([
 
@@ -56,9 +65,3 @@ train_loader_ucf = DataLoader(train_dataset_ucf, batch_size=Bs_Train, shuffle=Tr
 valid_loader_ucf  = DataLoader(valid_dataset_ucf, batch_size=Bs_Test, shuffle=False)
 valid_loader_ucf_small  = DataLoader(valid_dataset_ucf_small, batch_size=Bs_Test, shuffle=False)
 test_loader_ucf  = DataLoader(test_dataset_ucf, batch_size=Bs_Test, shuffle=False)
-
-
-
-mean_pooling=True
-max_iterations = 1000
-evaluate_every_iteration = 100

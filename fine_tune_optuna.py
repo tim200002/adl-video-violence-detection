@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import optuna
@@ -7,7 +8,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from utils.evaluate import evaluate
 from utils.get_model import get_model
-from utils.init_experiment import init_experiment
+from utils.init_experiment import init_experiment, resume_experiment
 from utils.save_model_weights import save_best_model_weights
 
 
@@ -24,7 +25,7 @@ def objective(trial, config):
         param.requires_grad = True
 
     # Generate the optimizer
-    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    lr = trial.suggest_float("lr", 1e-6, 1e-3, log=True)
     optimz = optim.Adam(model.parameters(), lr)
 
     train_loader = config.train_loader
@@ -81,11 +82,21 @@ if __name__ == "__main__":
     from functools import partial
     import configs.config as config
 
-    init_experiment(config)
+    # pass command line arguments for resume path
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--study_restore_path", type=str, default=None, help="Path to study to resume")
+    args = parser.parse_args()
+
+    if args.study_restore_path is not None:
+        resume_path = args.study_restore_path
+        resume_experiment(resume_path, config)
+    else:
+        init_experiment(config)
 
     logging.info(f"Start experiment: {config.experiment_name}")
     
     objective = partial(objective, config=config)
-    study = optuna.create_study(direction="maximize")
+
+    study = optuna.create_study(direction="maximize", study_name=config.experiment_name, storage=config.study_path, load_if_exists=True)
     study.optimize(objective, n_trials=20)
         

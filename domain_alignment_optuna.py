@@ -1,16 +1,18 @@
+import argparse
+import logging
 import math
 import os
 import torch.optim as optim
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from junk.run_copy import save_model_weights
 
-from movinets import MoViNet
-from movinets.config import _C
 from utils.evaluate import evaluate
 from utils.get_model import get_model
+from utils.init_experiment import init_experiment, resume_experiment
+from utils.mmd_loss import RBF, MMDLoss
 from utils.sampler import InfinityDomainSampler
+from utils.save_model_weights import save_best_model_weights
 
 
 from utils.wasserstein_loss import WassersteinLoss
@@ -22,15 +24,18 @@ def objective(trial, config):
     model = get_model(config.checkpoint_restore_path)
 
     # Generate the optimizer
-    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     optimz = optim.Adam(model.parameters(), lr)
     # exponential_decay_rate = trial.suggest_loguniform("exponential_decay_rate", 0.0001, 0.1)
 
     # Generate domain alignment loss
-    domain_alignment_loss = WassersteinLoss()
+    #domain_alignment_loss = WassersteinLoss()
+    kernel = RBF(device="cuda")
+    domain_alignment_loss = MMDLoss(kernel=kernel)
 
     # Furhter hyperparameters
     mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.0, 1.0)
+    mean_pooling = trial.suggest_categorical("mean_pooling", [True, False])
     
     src_sampler = InfinityDomainSampler(config.train_loader_hockey)
     target_sampler = InfinityDomainSampler(config.train_loader_ucf)
@@ -42,7 +47,7 @@ def objective(trial, config):
 
     best_acc = 0.0
     for epoch in range(1, no_of_epoch + 1):
-        print(f"Epoch: {epoch}/{no_of_epoch}")
+        logging.info(f"Epoch: {epoch}/{no_of_epoch}")
         iterations_this_epoch = min(config.evaluate_every_iteration, config.max_iterations - itertation_counter)
         for _ in tqdm(range(0, iterations_this_epoch)):
             itertation_counter += 1
@@ -65,7 +70,7 @@ def objective(trial, config):
             # Optimize for domain alignment
             
             # Mean pool accross time
-            if config.mean_pooling:
+            if mean_pooling:
                 src_features_domain_alignment = torch.mean(src_features, dim=2)
                 target_features_domain_alignment = torch.mean(target_features, dim=2)
             else:
@@ -85,11 +90,11 @@ def objective(trial, config):
 
         # evaluate
         target_accuracy = evaluate(model, target_test_loader)
-        print(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()}")
+        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()}")
         trial.report(target_accuracy, epoch)
 
-        model_save_path = os.path.join(config.save_path, f"model_{trial.number}.pth")
-        best_acc = save_model_weights(model, target_accuracy, best_acc, model_save_path)
+        model_save_path = os.path.join(config.checkpoint_path, f"model_{trial.number}.pth")
+        best_acc = save_best_model_weights(model, target_accuracy, best_acc, model_save_path)
 
         # handle pruning
         if trial.should_prune():
@@ -100,13 +105,27 @@ def objective(trial, config):
 if __name__ == "__main__":
     from functools import partial
 
-    import configs.config_mmd as config
     
-    # intial evaluation
-    model = get_model(config.checkpoint_restore_path)
-    target_accuracy = evaluate(model, config.valid_loader_ucf_small)
-    print(f"Initial accuracy: {target_accuracy.item()}")
+    # pass command line arguments for resume path
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--study_restore_path", type=str, default=None, help="Path to study to resume")
+    args = parser.parse_args()
+
+    if args.study_restore_path is not None:
+        resume_path = args.study_restore_path
+        config = resume_experiment(resume_path)
+    else:
+        import configs.config_mmd as config
+        init_experiment(config)
+        # intial evaluation
+        model = get_model(config.checkpoint_restore_path)
+        target_accuracy = evaluate(model, config.valid_loader_ucf_small)
+        logging.info(f"Initial accuracy: {target_accuracy.item()}")
+        
     
+    # run study
     objective = partial(objective, config=config)
-    study = optuna.create_study(direction="maximize")
+    
+   
+    study = optuna.create_study(direction="maximize", study_name=config.experiment_name, storage=config.study_path, load_if_exists=True)
     study.optimize(objective, n_trials=20)

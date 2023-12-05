@@ -68,7 +68,6 @@ def train(config):
 if __name__ == '__main__':
     import configs.config as config
     init_experiment(config)
-    logging.info(f"Start experiment: {config.experiment_name}")
-    
+
     train(config)
         
