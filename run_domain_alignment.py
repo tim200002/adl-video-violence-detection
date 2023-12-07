@@ -16,7 +16,7 @@ from utils.wasserstein_loss import WassersteinLoss
 
 def train(config):
     # Genereate te model
-    model = get_model(config.checkpoint_restore_path)
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
 
     # Generate the optimizer
     lr = config.lr
@@ -81,7 +81,7 @@ def train(config):
         
         # evaluate
         target_accuracy, confusion_matrix = evaluate(model, target_test_loader)
-        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()} Confusion matrix: {confusion_matrix}")
+        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy} Confusion matrix: {confusion_matrix}")
         model_save_path = os.path.join(config.checkpoint_path, f"domain_alignment.pth")
         best_acc = save_best_model_weights(model, target_accuracy, best_acc, model_save_path)
     

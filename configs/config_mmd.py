@@ -9,6 +9,7 @@ from utils.sampler import InfinityDomainSampler
 torch.manual_seed(97)
 experiment_name = "domain_alignment"
 num_frames = 16 # 16
+frame_rate = 5
 clip_steps = 1
 Bs_Train = 10
 Bs_Test = 16
@@ -54,12 +55,12 @@ train_loader_hockey = DataLoader(train_dataset_hockey, batch_size=Bs_Train, shuf
 valid_loader_hockey  = DataLoader(valid_dataset_hockey, batch_size=Bs_Test, shuffle=False)
 test_loader_hockey  = DataLoader(test_dataset_hockey, batch_size=Bs_Test, shuffle=False)
 
-train_dataset_ucf = dataloader.UCF(root=train_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform, num_workers=8)
-valid_dataset_ucf = dataloader.UCF(root=valid_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps, train=0,transform=transform_test, num_workers=8)
+train_dataset_ucf = dataloader.UCF(root=train_path_ucf, frames_per_clip=num_frames,frame_rate = 5, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform, num_workers=8)
+valid_dataset_ucf = dataloader.UCF(root=valid_path_ucf, frames_per_clip=num_frames,frame_rate = 5 frame_rate=2,step_between_clips = clip_steps, train=0,transform=transform_test, num_workers=8)
 # reduce size to 100 random samples
 valid_dataset_ucf_small = torch.utils.data.Subset(valid_dataset_ucf, torch.randperm(len(valid_dataset_ucf))[:100])
 
-test_dataset_ucf = dataloader.UCF(root=test_path_ucf, frames_per_clip=num_frames, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=8)
+test_dataset_ucf = dataloader.UCF(root=test_path_ucf, frames_per_clip=num_frames,frame_rate = 5, frame_rate=2,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=8)
 
 train_loader_ucf = DataLoader(train_dataset_ucf, batch_size=Bs_Train, shuffle=True)
 valid_loader_ucf  = DataLoader(valid_dataset_ucf, batch_size=Bs_Test, shuffle=False)

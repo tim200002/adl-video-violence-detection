@@ -21,17 +21,16 @@ import optuna
 
 def objective(trial, config):
     # Generate the model
-    model = get_model(config.checkpoint_restore_path)
-
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
     # Generate the optimizer
     lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     optimz = optim.Adam(model.parameters(), lr)
     # exponential_decay_rate = trial.suggest_loguniform("exponential_decay_rate", 0.0001, 0.1)
 
     # Generate domain alignment loss
-    #domain_alignment_loss = WassersteinLoss()
-    kernel = RBF(device="cuda")
-    domain_alignment_loss = MMDLoss(kernel=kernel)
+    domain_alignment_loss = WassersteinLoss()
+    #kernel = RBF(device="cuda")
+    #domain_alignment_loss = MMDLoss(kernel=kernel)
 
     # Furhter hyperparameters
     mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.0, 1.0)
@@ -90,7 +89,7 @@ def objective(trial, config):
 
         # evaluate
         target_accuracy, confusion_matrix = evaluate(model, target_test_loader)
-        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy.item()} Confusion matrix: {confusion_matrix}")
+        logging.info(f"[Epoch: {epoch}/{no_of_epoch}, Iteration: {itertation_counter}/config.max_iterations] Target accuracy: {target_accuracy} Confusion matrix: {confusion_matrix}")
         trial.report(target_accuracy, epoch)
 
         model_save_path = os.path.join(config.checkpoint_path, f"model_{trial.number}.pth")
@@ -118,9 +117,9 @@ if __name__ == "__main__":
         import configs.config_mmd as config
         init_experiment(config)
         # intial evaluation
-        model = get_model(config.checkpoint_restore_path)
+        model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
         target_accuracy, confusion_matrix = evaluate(model, config.valid_loader_ucf_small)
-        logging.info(f"Initial accuracy: {target_accuracy.item()}")
+        logging.info(f"Initial accuracy: {target_accuracy}")
         logging.info(f"Confusion matrix: {confusion_matrix}")
         
     

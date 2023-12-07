@@ -8,6 +8,7 @@ import utils.dataloader as dataloader
 torch.manual_seed(97)
 experiment_name = "finetune"
 num_frames = 16 # 16
+frame_rate = 5
 clip_steps = 1
 Bs_Train = 16
 Bs_Test = 16
@@ -16,7 +17,7 @@ Bs_Test = 16
 lr = 0.00005
 n_epochs = 1
 
-checkpoint_restore_path = None
+checkpoint_restore_path = "checkpoint/best_hockey_A1.pt"
 
 transform = transforms.Compose([
 
@@ -36,7 +37,7 @@ valid_path = './data/HockeyFights/valid/'
 test_path = './data/HockeyFights/test/'
 
 train_dataset_hockey = dataloader.Hockey(root=train_path, frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform, num_workers=16)
-valid_dataset_hockey = dataloader.Hockey(root=valid_path,  frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=16)
+valid_dataset_hockey = dataloader.Hockey(root=valid_path,  frames_per_clip=num_frames, step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=16)
 valid_dataset_hockey_small = torch.utils.data.Subset(valid_dataset_hockey, torch.randperm(len(valid_dataset_hockey))[:100])
 test_dataset_hockey = dataloader.Hockey(root=test_path,  frames_per_clip=num_frames,step_between_clips = clip_steps,  train=0,transform=transform_test, num_workers=16)
 

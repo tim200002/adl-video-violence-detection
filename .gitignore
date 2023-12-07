@@ -53,3 +53,4 @@ htmlcov/
 experiments/
 *.pt
 experiments/
+checkpoint/

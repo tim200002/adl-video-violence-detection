@@ -14,7 +14,7 @@ from utils.save_model_weights import save_best_model_weights
 
 def objective(trial, config):
     # Generate the model
-    model = get_model(config.checkpoint_restore_path)
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
     
     # freeze all layers
     for param in model.parameters():

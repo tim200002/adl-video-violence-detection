@@ -11,7 +11,7 @@ from utils.save_model_weights import save_best_model_weights
 
 def train(config):
     # Generate the model
-    model = get_model()
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
 
     # freeze all layers
     for param in model.parameters():
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     import configs.config as config
     init_experiment(config)
 
-    model = get_model()
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
     initial_accuracy, confusion_matrix = evaluate(model, config.valid_loader)
     logging.info(f"Initial accuracy: {initial_accuracy}")
     logging.info(f"Confusion matrix: {confusion_matrix}")
