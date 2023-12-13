@@ -18,9 +18,6 @@ def evaluate(model, data_load):
             output = F.log_softmax(output, dim=1)
             _, pred = torch.max(output, dim=1)
 
-            #print(output)
-            #print(labels)
-            #print(pred)
             
             for (label, prediction) in zip(labels, pred):
                 counting_matrix[label][prediction] += 1

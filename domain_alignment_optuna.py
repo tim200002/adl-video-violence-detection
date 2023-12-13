@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+from utils.augmentation import get_augmenter_2
 
 from utils.evaluate import evaluate
 from utils.get_model import get_model
@@ -18,7 +19,6 @@ from utils.save_model_weights import save_best_model_weights
 from utils.wasserstein_loss import WassersteinLoss
 import optuna
 
-
 def objective(trial, config):
     # Generate the model
     model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
@@ -28,16 +28,24 @@ def objective(trial, config):
     # exponential_decay_rate = trial.suggest_loguniform("exponential_decay_rate", 0.0001, 0.1)
 
     # Generate domain alignment loss
-    domain_alignment_loss = WassersteinLoss()
-    #kernel = RBF(device="cuda")
-    #domain_alignment_loss = MMDLoss(kernel=kernel)
+    domain_alignment_loss_string = trial.suggest_categorical("domain_alignment_loss", ["wasserstein", "mmd"])
+    if domain_alignment_loss_string == "wasserstein":
+        domain_alignment_loss = WassersteinLoss()
+    elif domain_alignment_loss_string == "mmd":
+        kernel = RBF(device="cuda")
+        domain_alignment_loss = MMDLoss(kernel=kernel)
+    else:
+        raise NotImplementedError()
 
     # Furhter hyperparameters
-    mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.0, 1.0)
+    mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.2, 0.8)
     mean_pooling = trial.suggest_categorical("mean_pooling", [True, False])
+
+    #should_augment_video = trial.suggest_categorical("should_augment_video", [True, False])
+    should_augment_video = False
     
-    src_sampler = InfinityDomainSampler(config.train_loader_hockey)
-    target_sampler = InfinityDomainSampler(config.train_loader_ucf)
+    src_sampler = InfinityDomainSampler(config.train_loader_hockey, config.Bs_Train)
+    target_sampler = InfinityDomainSampler(config.train_loader_ucf, config.Bs_Train)
     target_test_loader = config.valid_loader_ucf_small
 
 
@@ -53,6 +61,10 @@ def objective(trial, config):
 
             (src_videos, label) = src_sampler.get_sample()
             (target_videos, _) = target_sampler.get_sample()
+
+            if should_augment_video:
+                src_videos = get_augmenter_2(src_videos)
+                target_videos = get_augmenter_2(target_videos)
 
             model.train()
             optimz.zero_grad()
@@ -99,7 +111,7 @@ def objective(trial, config):
         if trial.should_prune():
             raise optuna.exceptions.TrialPruned()
         
-    return target_accuracy
+    return best_acc
 
 if __name__ == "__main__":
     from functools import partial

@@ -25,7 +25,9 @@ transform = transforms.Compose([
                                  T.Resize((200, 200)),
                                  T.RandomHorizontalFlip(),
                                  #T.Normalize(mean=[0.43216, 0.394666, 0.37645], std=[0.22803, 0.22145, 0.216989]),
-                                 T.RandomCrop((172, 172))])
+                                 T.RandomCrop((172, 172))
+                                 
+                                 ])
 transform_test = transforms.Compose([
                                  T.ToFloatTensorInZeroOne(),
                                  T.Resize((200, 200)),

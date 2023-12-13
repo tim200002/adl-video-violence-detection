@@ -3,15 +3,20 @@ import math
 import os
 import torch
 from tqdm import tqdm
+from utils.augmentation import get_augmenter, get_augmenter_2
 from utils.evaluate import evaluate
 from utils.get_model import get_model
 import torch.optim as optim
 from utils.init_experiment import init_experiment
+from utils.mmd_loss import RBF, MMDLoss
 from utils.sampler import InfinityDomainSampler
 from utils.save_model_weights import save_best_model_weights
 import torch.nn.functional as F
 
+
 from utils.wasserstein_loss import WassersteinLoss
+
+SHOULD_AUGMENT_VIDEO = True
 
 
 def train(config):
@@ -23,13 +28,14 @@ def train(config):
     optimz = optim.Adam(model.parameters(), lr)
 
     # Generate domain alignment loss
-    domain_alignment_loss = WassersteinLoss()
+    domain_alignment_loss = config.domain_alignment_loss
+    mean_pooling = config.mean_pooling
 
     # Furhter hyperparameters
     mmd_weighting_factor = config.mmd_weighting_factor
 
-    src_sampler = InfinityDomainSampler(config.train_loader_hockey)
-    target_sampler = InfinityDomainSampler(config.train_loader_ucf)
+    src_sampler = InfinityDomainSampler(config.train_loader_hockey, config.Bs_Train)
+    target_sampler = InfinityDomainSampler(config.train_loader_ucf, config.Bs_Train)
     target_test_loader = config.valid_loader_ucf_small
 
     no_of_epoch = math.ceil(config.max_iterations / config.evaluate_every_iteration)
@@ -46,6 +52,14 @@ def train(config):
             (src_videos, label) = src_sampler.get_sample()
             (target_videos, _) = target_sampler.get_sample()
 
+            if SHOULD_AUGMENT_VIDEO:
+                #src_videos = get_augmenter(src_videos)
+                #target_videos = get_augmenter(target_videos)
+                
+                src_videos = get_augmenter_2(src_videos)
+                target_videos = get_augmenter_2(target_videos)
+            
+
             model.train()
             optimz.zero_grad()
             model.clean_activation_buffers()
@@ -61,7 +75,7 @@ def train(config):
             # Optimize for domain alignment
             
             # Mean pool accross time
-            if config.mean_pooling:
+            if mean_pooling:
                 src_features_domain_alignment = torch.mean(src_features, dim=2)
                 target_features_domain_alignment = torch.mean(target_features, dim=2)
             else:
@@ -92,7 +106,8 @@ if __name__ == "__main__":
     init_experiment(config)
 
     # initial evaluation
-    target_accuracy, evaluation_matrix = evaluate(get_model(config.checkpoint_restore_path), config.valid_loader_ucf_small)
+    model = get_model(model_name="A1", checkpoint_path=config.checkpoint_restore_path)
+    target_accuracy, evaluation_matrix = evaluate(model=model, data_load=config.valid_loader_ucf_small)
     logging.info(f"Initial accuracy: {target_accuracy}")
     logging.info(f"Initial evaluation matrix: {evaluation_matrix}")
 
