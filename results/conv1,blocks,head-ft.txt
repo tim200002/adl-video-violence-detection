@@ -1,0 +1,31 @@
+Epoch: 1
+/home/sangyoonyu/workspace/ADL/venv/lib/python3.10/site-packages/torchvision/io/video.py:161: UserWarning: The pts_unit 'pts' gives wrong results. Please use pts_unit 'sec'.
+  warnings.warn("The pts_unit 'pts' gives wrong results. Please use pts_unit 'sec'.")
+[    0/ 7520 (  0%)]  Loss: 0.7059
+[  800/ 7520 ( 11%)]  Loss: 0.6576
+[ 1600/ 7520 ( 21%)]  Loss: 0.5559
+[ 2400/ 7520 ( 32%)]  Loss: 0.4266
+[ 3200/ 7520 ( 43%)]  Loss: 0.3555
+[ 4000/ 7520 ( 53%)]  Loss: 0.1433
+[ 4800/ 7520 ( 64%)]  Loss: 0.1194
+[ 5600/ 7520 ( 74%)]  Loss: 0.1582
+[ 6400/ 7520 ( 85%)]  Loss: 0.0392
+[ 7200/ 7520 ( 96%)]  Loss: 0.0280
+
+Average test loss: 0.1246  Accuracy: 2837/ 2945 (96.33%)
+
+Epoch: 2
+[    0/ 7520 (  0%)]  Loss: 0.0256
+[  800/ 7520 ( 11%)]  Loss: 0.0186
+[ 1600/ 7520 ( 21%)]  Loss: 0.0266
+[ 2400/ 7520 ( 32%)]  Loss: 0.0228
+[ 3200/ 7520 ( 43%)]  Loss: 0.0181
+[ 4000/ 7520 ( 53%)]  Loss: 0.0122
+[ 4800/ 7520 ( 64%)]  Loss: 0.0084
+[ 5600/ 7520 ( 74%)]  Loss: 0.0143
+[ 6400/ 7520 ( 85%)]  Loss: 0.0053
+[ 7200/ 7520 ( 96%)]  Loss: 0.0097
+
+Average test loss: 0.1233  Accuracy: 2818/ 2945 (95.69%)
+
+Execution time: 1355.69 seconds

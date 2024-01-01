@@ -1,148 +1,127 @@
-# MoViNet-pytorch
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Atze00/MoViNet-pytorch/blob/main/movinet_tutorial.ipynb)  [![Paper](http://img.shields.io/badge/Paper-arXiv.2103.11511-B3181B?logo=arXiv)](https://arxiv.org/abs/2103.11511) <br><br>
-Pytorch unofficial implementation of [MoViNets: Mobile Video Networks for Efficient Video Recognition](https://arxiv.org/pdf/2103.11511.pdf). <br>
-Authors: Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Mingxing Tan, Matthew Brown, Boqing Gong (Google Research) <br>
-[[Authors' Implementation]](https://github.com/tensorflow/models/tree/master/official/vision/beta/projects/movinet)<br>
+# Experiments Collection
 
-## Stream Buffer
-![stream buffer](https://github.com/Atze00/MoViNet-pytorch/blob/main/figures/Stream_buffer.png)
+## General Settings
 
-#### Clean stream buffer
-It is required to clean the buffer after all the clips of the same video have been processed.
-```python
-model.clean_activation_buffers()
-```
-## Usage
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Atze00/MoViNet-pytorch/blob/main/movinet_tutorial.ipynb) <br>
-Click on "Open in Colab" to open an example of training on HMDB-51 <br> 
-### installation 
-```pip install git+https://github.com/Atze00/MoViNet-pytorch.git```
+- Model: MoviNetA1
 
-#### How to build a model
-Use ```causal = True``` to use the model with stream buffer, causal = False will use standard convolutions<br>
-```python
-from movinets import MoViNet
-from movinets.config import _C
+  - Causal = False
+  - pretrained = True
 
-MoViNetA0 = MoViNet(_C.MODEL.MoViNetA0, causal = True, pretrained = True )
-MoViNetA1 = MoViNet(_C.MODEL.MoViNetA1, causal = True, pretrained = True )
-...
-```
-##### Load weights
-Use ```pretrained = True``` to use the model with pretrained weights<br>
+- Frame Rates
 
-```python
-    """
-    If pretrained is True:
-        num_classes is set to 600,
-        conv_type is set to "3d" if causal is False, "2plus1d" if causal is True
-        tf_like is set to True
-    """
-model = MoViNet(_C.MODEL.MoViNetA0, causal = True, pretrained = True )
-model = MoViNet(_C.MODEL.MoViNetA0, causal = False, pretrained = True )
-```
+  - Hockey: None
+  - UCF: 5
+  - Num_frames = 16
+
+  
+
+## Experiment 1 - Finetuning
 
 
-#### Training loop examples
-Training loop with stream buffer
-```python
-def train_iter(model, optimz, data_load, n_clips = 5, n_clip_frames=8):
-    """
-    In causal mode with stream buffer a single video is fed to the network
-    using subclips of lenght n_clip_frames. 
-    n_clips*n_clip_frames should be equal to the total number of frames presents
-    in the video.
-    
-    n_clips : number of clips that are used
-    n_clip_frames : number of frame contained in each clip
-    """
-    
-    #clean the buffer of activations
-    model.clean_activation_buffers()
-    optimz.zero_grad()
-    for i, data, target in enumerate(data_load):
-        #backward pass for each clip
-        for j in range(n_clips):
-          out = F.log_softmax(model(data[:,:,(n_clip_frames)*(j):(n_clip_frames)*(j+1)]), dim=1)
-          loss = F.nll_loss(out, target)/n_clips
-          loss.backward()
-        optimz.step()
-        optimz.zero_grad()
-        
-        #clean the buffer of activations
-        model.clean_activation_buffers()
-```
-Training loop with standard convolutions
-```python
-def train_iter(model, optimz, data_load):
 
-    optimz.zero_grad()
-    for i, (data,_ , target) in enumerate(data_load):
-        out = F.log_softmax(model(data), dim=1)
-        loss = F.nll_loss(out, target)
-        loss.backward()
-        optimz.step()
-        optimz.zero_grad()
-```
+## Experiment 2 - Self Supervised Learning
 
-## Pretrained models
-#### Weights
-The weights are loaded from the tensorflow models released by the authors, trained on kinetics.
-
-#### Base Models
-
-Base models implement standard 3D convolutions without stream buffers.
-
-| Model Name | Top-1 Accuracy* | Top-5 Accuracy* | Input Shape |
-|------------|----------------|----------------|-------------|
-| MoViNet-A0-Base | 72.28 | 90.92 | 50 x 172 x 172 | 
-| MoViNet-A1-Base | 76.69 | 93.40 | 50 x 172 x 172 | 
-| MoViNet-A2-Base | 78.62 | 94.17 | 50 x 224 x 224 | 
-| MoViNet-A3-Base | 81.79 | 95.67 | 120 x 256 x 256 | 
-| MoViNet-A4-Base | 83.48 | 96.16 | 80 x 290 x 290 | 
-| MoViNet-A5-Base | 84.27 | 96.39 | 120 x 320 x 320 | 
+**SSL**
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.97     |  [[0.9584615384615385, 0.04153846153846154], [0.01, 0.99]]    |
+| Source Test  | 0.97     | [[0.9657794676806084, 0.034220532319391636], [0.016166281755196306, 0.9838337182448037]]    |
+| Target Train | 0.66     | [[0.6337209302325582, 0.36627906976744184], [0.31402439024390244, 0.6859756097560976]] |
+| Target Val   | 0.76     | [[0.6649672250546249, 0.3350327749453751], [0.14547304170905392, 0.854526958290946]] |
+| Target Test  | 0.78    | [[0.6595918367346939, 0.3404081632653061], [0.10458360232408005, 0.89541639767592]] |
 
 
-| Model Name | Top-1 Accuracy* | Top-5 Accuracy* | Input Shape\*\* |
-|------------|----------------|----------------|---------------|
-| MoViNet-A0-Stream | 72.05 | 90.63 | 50 x 172 x 172 | 
-| MoViNet-A1-Stream | 76.45 | 93.25 | 50 x 172 x 172 |
-| MoViNet-A2-Stream | 78.40 | 94.05 | 50 x 224 x 224 |
+
+## Experiment 3 - Domain Alignment
+
+**Baseline Performance**
+
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.99     | [[1.0, 0.0], [0.011538461538461539, 0.9884615384615385]]     |
+| Source Test  | 0.98     | [[1.0, 0.0], [0.020015396458814474, 0.9799846035411856]]     |
+| Target Train | 0.64     | [[0.4205128205128205, 0.5794871794871795], [0.13114754098360656,0.8688524590163934]] |
+| Target Val   | 0.57     | [[0.22402597402597402, 0.775974025974026], [0.06516464471403813,0.9348353552859618]] |
+| Target Test  | 0.58     | [[0.36530398322851154,0.6346960167714885],[0.18856059093631464,0.8114394090636854]] |
 
 
-\*\*In streaming mode, the number of frames correspond to the total accumulated
-duration of the 10-second clip.
 
-*Accuracy reported on the official repository for the dataset kinetics 600, It has not been tested by me. It should be the same since the tf models and the reimplemented pytorch models output the same results [[Test]](https://github.com/Atze00/MoViNet-pytorch/blob/main/tests/test_pretrained_models.py).
+### **Results Optuna Search for Optimal Hyperparameters**
 
-I currently haven't tested the speed of the streaming models, feel free to test and contribute.
+- Batch Size: 10 (due to memory limitations)
+- lr = 0.0006949557944820544
+- mmd_weighting_factor=0.567610878889856
+- domain_alignment_loss = Wasserstein
+- Mean_pooling = True
+- Augmentations = False
 
-#### Status
-Currently are available the pretrained models for the following architectures:
-- [x] MoViNetA1-BASE
-- [x] MoViNetA1-STREAM
-- [x] MoViNetA2-BASE
-- [x] MoViNetA2-STREAM
-- [x] MoViNetA3-BASE
-- [ ] MoViNetA3-STREAM
-- [x] MoViNetA4-BASE
-- [ ] MoViNetA4-STREAM
-- [x] MoViNetA5-BASE
-- [ ] MoViNetA5-STREAM
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.99     | [[0.9938461538461538,0.006153846153846154], [0.013846153846153847,0.9861538461538462]] |
+| Source Test  | 0.98     | [[0.9954372623574145,0.0045627376425855515], [0.01924557351809084, 0.9807544264819091]] |
+| Target Val   | 0.83     | [[0.6961334120425029, 0.30386658795749705], [0.040901213171577126, 0.9590987868284229]] |
+| Target Test  | 0.68     | [[0.8270440251572327, 0.17295597484276728], [0.46526252745058894, 0.5347374725494111]] |
+| Target Train | 0.72     | [[0.6594594594594595, 0.34054054054054056], [0.23809523809523808, 0.7619047619047619]] |
 
-I currently have no plans to include streaming version of A3,A4,A5. Those models are too slow for most mobile applications.
+**Result MMD**
 
-### Testing
-I recommend to create a new environment for testing and run the following command to install all the required packages: <br>
-    ```pip install -r tests/test_requirements.txt```
-    
-### Citations
-```bibtex
-@article{kondratyuk2021movinets,
-  title={MoViNets: Mobile Video Networks for Efficient Video Recognition},
-  author={Dan Kondratyuk, Liangzhe Yuan, Yandong Li, Li Zhang, Matthew Brown, and Boqing Gong},
-  journal={arXiv preprint arXiv:2103.11511},
-  year={2021}
-}
-```
+Source Val:
 
+0.96, Confusion Matrix: [[0.9953846153846154, 0.004615384615384616], [0.07538461538461538, 0.9246153846153846]]
+
+Source Test:
+
+0.981139337952271, Confusion Matrix: [[1.0, 0.0], [0.037721324095458045, 0.962278675904542]]
+
+Target Train:
+
+Accuracy: 0.6653796653796654, Confusion Matrix: [[0.7783783783783784, 0.22162162162162163], [0.44761904761904764, 0.5523809523809524]]
+
+Target Val
+
+0.7114491405081448, Confusion Matrix: [[0.7185655253837072, 0.2814344746162928], [0.2956672443674177, 0.7043327556325824]]
+
+Target Test
+
+0.5874716390999346, Confusion Matrix: [[0.8317610062893082, 0.16823899371069181], [0.6568177280894391, 0.343182271910561]]
+
+## Experiment 4 - Domain Alignment + Self Supervised Learning
+
+**Baseline Performance**
+
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.99     | [[1.0, 0.0], [0.022307692307692306, 0.9776923076923076]]    |
+| Source Test  | 0.99     | [[0.9977186311787072, 0.0022813688212927757], [0.02155504234026174, 0.9784449576597383]]    |
+| Target Train | 0.59     | [[0.33121019108280253, 0.6687898089171974], [0.14285714285714285, 0.8571428571428571]] |
+| Target Val   | 0.57     | [[0.22402597402597402, 0.775974025974026], [0.06516464471403813,0.9348353552859618]] |
+| Target Test  | 0.70     | [[0.43248979591836734, 0.5675102040816327], [0.02356358941252421, 0.9764364105874758]] |
+
+**UDA**
+
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.97     | [[1.0, 0.0], [0.055384615384615386, 0.9446153846153846]]  |
+| Source Test  | 0.98     | [[1.0, 0.0], [0.03002309468822171, 0.9699769053117783]]  |
+| Target Train | 0.70     | [[0.7467532467532467, 0.2532467532467532], [0.34104046242774566, 0.6589595375722543]] |
+| Target Val   | 0.72     | [[0.5647001699441612, 0.4352998300558388], [0.12156663275686673, 0.8784333672431333]] |
+| Target Test  | 0.77     | [[0.6953469387755102, 0.3046530612244898], [0.16026468689477083, 0.8397353131052292]] |
+
+**SSL** (experiment ssl 88 or 89)
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.97     |  [[0.9584615384615385, 0.04153846153846154], [0.01, 0.99]]    |
+| Source Test  | 0.97     | [[0.9657794676806084, 0.034220532319391636], [0.016166281755196306, 0.9838337182448037]]    |
+| Target Train | 0.66     | [[0.6337209302325582, 0.36627906976744184], [0.31402439024390244, 0.6859756097560976]] |
+| Target Val   | 0.76     | [[0.6649672250546249, 0.3350327749453751], [0.14547304170905392, 0.854526958290946]] |
+| Target Test  | 0.78    | [[0.6595918367346939, 0.3404081632653061], [0.10458360232408005, 0.89541639767592]] |
+
+### Results
+**UDA + SSL** (experiment ssl 88 or 89)
+| Experiment   | Accuracy | Confusion Matrix                                             |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Source Val   | 0.93     |  [[0.99, 0.01], [0.13307692307692306, 0.8669230769230769]]   |
+| Source Test  | 0.95     |  [[0.9536121673003802, 0.04638783269961977], [0.06312548113933796, 0.9368745188606621]]   |
+| Target Train | 0.70     | [[0.7844311377245509, 0.2155688622754491], [0.3933933933933934, 0.6066066066066066]] |
+| Target Val   | 0.79     | [[0.7768875940762321, 0.2231124059237679], [0.193794506612411, 0.8062054933875891]] |
+| Target Test  | 0.81    | [[0.8081632653061225, 0.19183673469387755], [0.19625564880568108, 0.8037443511943189]] |
