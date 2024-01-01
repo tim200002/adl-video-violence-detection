@@ -25,7 +25,6 @@ def objective(trial, config):
     # Generate the optimizer
     lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     optimz = optim.Adam(model.parameters(), lr)
-    # exponential_decay_rate = trial.suggest_loguniform("exponential_decay_rate", 0.0001, 0.1)
 
     # Generate domain alignment loss
     domain_alignment_loss_string = trial.suggest_categorical("domain_alignment_loss", ["wasserstein", "mmd"])
@@ -39,9 +38,7 @@ def objective(trial, config):
 
     # Furhter hyperparameters
     mmd_weighting_factor = trial.suggest_float("mmd_weighting_factor", 0.2, 0.8)
-    mean_pooling = trial.suggest_categorical("mean_pooling", [True, False])
 
-    #should_augment_video = trial.suggest_categorical("should_augment_video", [True, False])
     should_augment_video = False
     
     src_sampler = InfinityDomainSampler(config.train_loader_hockey, config.Bs_Train)
@@ -78,19 +75,9 @@ def objective(trial, config):
             out = F.log_softmax(preds, dim=1)
             loss_acc = F.nll_loss(out, label.cuda())
 
-            # Optimize for domain alignment
-            
-            # Mean pool accross time
-            if mean_pooling:
-                src_features_domain_alignment = torch.mean(src_features, dim=2)
-                target_features_domain_alignment = torch.mean(target_features, dim=2)
-            else:
-                src_features_domain_alignment = src_features
-                target_features_domain_alignment = target_features
-
             # flatten
-            src_feature_flattened = src_features_domain_alignment.view(src_features_domain_alignment.shape[0], -1)
-            target_feature_flattened = target_features_domain_alignment.view(target_features_domain_alignment.shape[0], -1)
+            src_feature_flattened = src_features.view(src_features.shape[0], -1)
+            target_feature_flattened = target_features.view(target_features.shape[0], -1)
 
             loss_alignment = domain_alignment_loss(src_feature_flattened, target_feature_flattened)
 

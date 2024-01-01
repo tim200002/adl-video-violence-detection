@@ -1,23 +1,15 @@
 import logging
 import math
 import os
-import torch
 from tqdm import tqdm
-from utils.augmentation import get_augmenter, get_augmenter_2
+from utils.augmentation import get_augmenter
 from utils.evaluate import evaluate
 from utils.get_model import get_model
 import torch.optim as optim
 from utils.init_experiment import init_experiment
-from utils.mmd_loss import RBF, MMDLoss
 from utils.sampler import InfinityDomainSampler
 from utils.save_model_weights import save_best_model_weights
 import torch.nn.functional as F
-
-
-from utils.wasserstein_loss import WassersteinLoss
-
-SHOULD_AUGMENT_VIDEO = True
-
 
 def train(config):
     # Genereate te model
@@ -26,10 +18,9 @@ def train(config):
     # Generate the optimizer
     lr = config.lr
     optimz = optim.Adam(model.parameters(), lr)
-
+    
     # Generate domain alignment loss
     domain_alignment_loss = config.domain_alignment_loss
-    mean_pooling = config.mean_pooling
 
     # Furhter hyperparameters
     mmd_weighting_factor = config.mmd_weighting_factor
@@ -52,12 +43,9 @@ def train(config):
             (src_videos, label) = src_sampler.get_sample()
             (target_videos, _) = target_sampler.get_sample()
 
-            if SHOULD_AUGMENT_VIDEO:
-                #src_videos = get_augmenter(src_videos)
-                #target_videos = get_augmenter(target_videos)
-                
-                src_videos = get_augmenter_2(src_videos)
-                target_videos = get_augmenter_2(target_videos)
+            if config.should_augment:
+                src_videos = get_augmenter(src_videos)
+                target_videos = get_augmenter(target_videos)
             
 
             model.train()
@@ -74,17 +62,9 @@ def train(config):
 
             # Optimize for domain alignment
             
-            # Mean pool accross time
-            if mean_pooling:
-                src_features_domain_alignment = torch.mean(src_features, dim=2)
-                target_features_domain_alignment = torch.mean(target_features, dim=2)
-            else:
-                src_features_domain_alignment = src_features
-                target_features_domain_alignment = target_features
-
             # flatten
-            src_feature_flattened = src_features_domain_alignment.view(src_features_domain_alignment.shape[0], -1)
-            target_feature_flattened = target_features_domain_alignment.view(target_features_domain_alignment.shape[0], -1)
+            src_feature_flattened = src_features.view(src_features.shape[0], -1)
+            target_feature_flattened = target_features.view(target_features.shape[0], -1)
 
             loss_alignment = domain_alignment_loss(src_feature_flattened, target_feature_flattened)
 

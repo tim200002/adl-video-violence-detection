@@ -2,8 +2,10 @@
 import glob
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import numpy as np
 
 from torch import Tensor
+import torch
 
 from torchvision.datasets.vision import VisionDataset
 
@@ -132,12 +134,10 @@ class Hockey(VisionDataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, int]:
         video, audio, _, video_idx = self.full_video_clips.get_clip(idx)
-        #sample_index = self.indices[video_idx]
         _, class_index = self.samples[video_idx]
 
         if self.transform is not None:
             video = self.transform(video)
-        #print("getitem",video.size())
         return video, class_index
 
 
@@ -252,13 +252,65 @@ class UCF(VisionDataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, int]:
         video, audio, _, video_idx = self.full_video_clips.get_clip(idx)
-        #sample_index = self.indices[video_idx]
         _, class_index = self.samples[video_idx]
 
         if self.transform is not None:
             video = self.transform(video)
-        #print("getitem",video.size())
         return video, class_index
+    
+class DoubleTransformDataset(VisionDataset):
+    def __init__(self, dataset, transform, transform2):
+        super().__init__(dataset.root)
+        self.dataset = dataset
+        self.transform = transform
+        self.transform2 = transform2
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        with torch.no_grad():
+            video, target = self.dataset[index]
+            video1 = self.transform(video)
+            video2 = self.transform2(video)
+        return video1, video2, target
+    
+class TripleTransformDataset(VisionDataset):
+    def __init__(self, dataset, transform, transform2, transform3):
+        super().__init__(dataset.root)
+        self.dataset = dataset
+        self.transform = transform
+        self.transform2 = transform2
+        self.transform3 = transform3
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        with torch.no_grad():
+            video, target = self.dataset[index]
+            video1 = self.transform(video)
+            video2 = self.transform2(video)
+            video3 = self.transform3(video)
+        return video1, video2, video3, target
+    
+class MultipleDataset(VisionDataset):
+    def __init__(self, *datasets):
+        super().__init__(datasets[0].root)
+        self.datasets = datasets
+        self.cumulative_sizes = np.cumsum([len(d) for d in self.datasets])
+
+    def __len__(self):
+        return self.cumulative_sizes[-1]
+    
+    def __getitem__(self, index):
+        dataset_idx = np.searchsorted(self.cumulative_sizes, index, side='right')
+        if dataset_idx == 0:
+            sample_idx = index
+        else:
+            sample_idx = index - self.cumulative_sizes[dataset_idx - 1]
+        return self.datasets[dataset_idx][sample_idx]
+        
 
 if __name__ == "__main__":
     num_frames = 5

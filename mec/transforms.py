@@ -143,7 +143,7 @@ class Solarize(object):
         self.threshold = threshold
 
     def __call__(self, vid):
-        return torch.where(vid < self.threshold, vid, 1 - vid)
+        return torch.where(vid < self.threshold, vid, 255 - vid)
     
 class GaussianBlur(object):
     def __init__(self, kernel_size, sigma=(0.1, 2.0)):

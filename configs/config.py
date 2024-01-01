@@ -18,6 +18,7 @@ lr = 0.00005
 n_epochs = 1
 
 checkpoint_restore_path = "checkpoint/best_hockey_A1.pt"
+# checkpoint_restore_path = None
 
 transform = transforms.Compose([
 
